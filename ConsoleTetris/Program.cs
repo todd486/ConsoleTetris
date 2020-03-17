@@ -9,7 +9,8 @@ namespace ConsoleTetris
     {
         public class Tetromino
         {
-            private byte[][,] shapes = { //jagged array storing shape info in hex, to later be converted into binary
+            public Tetromino() { }
+            private byte[][,] data = { //jagged array storing shape info in hex, to later be converted into binary
                 new byte[,] { { 0x0 }, { 0xF } },
                 new byte[,] { { 0x8 }, { 0xE } },
                 new byte[,] { { 0x2 }, { 0xE } },
@@ -18,138 +19,143 @@ namespace ConsoleTetris
                 new byte[,] { { 0x4 }, { 0xE } },
                 new byte[,] { { 0xC }, { 0x6 } }
             };
-            public Tetromino() { }
-            public int[,] getShape(int shapeIndex)
-            {
-                int[,] returnBuffer = new int[4, 2];
+            private int[] Coords = { 0, 0 };
+            public int Xpos { get => Coords[0]; set { Coords[0] = (value >= 0 && value < 10 ? value : 0); } }
+            public int Ypos { get => Coords[1]; set { Coords[1] = (value >= 0 && value < 15 ? value : 0); } }
+            public int[,] Shape = new int[4, 4];
+            public void genShape(int dataIndex) {
+                int[,] temp = new int[4, 4];
                 int acc = 0;
-                foreach (byte shape in shapes[shapeIndex])
-                {
+                foreach (byte shape in data[dataIndex]) {
                     string binaryString = "";
                     binaryString += Convert.ToString(shape, 2).PadLeft(4, '0');
-                    foreach (var bin in binaryString.Select((value, i) => new { i, value }))
-                    { //credit where credit is due: https://stackoverflow.com/a/11437562
+                    foreach (var bin in binaryString.Select((value, i) => new { i, value })) { //credit where credit is due: https://stackoverflow.com/a/11437562
                         var value = bin.value;
                         var index = bin.i;
-                        returnBuffer[index, acc] = (int)Char.GetNumericValue(value); //this was painful
+                        temp[index, acc] = (int)Char.GetNumericValue(value); //this was painful
                     }
                     acc++;
                 }
-                return returnBuffer;
+                Shape = temp;
             }
-            public int[,] setShape { get; set; } //getShape should always be pushed into setShape
-            private int[] Coords = { 0, 0 };
-            public int Xpos { get => Coords[0]; set { Coords[0] = (value >= 0 && value < 10 ? value : 0); } }
-            public int Ypos { get => Coords[1]; set { Coords[1] = (value >= 0 && value < 10 ? value : 0); } }
         }
-        public static class GlobalValues
-        {
+        public static class State {
             public static bool paused { get; set; }
-            public static bool lost = false;
+            public static bool lost { get; set; }
         }
-        static void Main(string[] args)
-        {
-            Console.CursorVisible = false;
-
-            int[,] field = new int[10, 16];
+        static void Main(string[] args) {
             bool active = false;
-
+            int difficulty = 1;
+            int[,] field = new int[10, 16];
             Tetromino current = new Tetromino(); //instantiate a tetromino
-            Random random = new Random();
-
-            Thread drawThread = new Thread(() => Draw(field, current));
-            Thread controlThread = new Thread(() => Controls());
-
-            bool Occupied(int x, int y) //TODO: Implement collision detection
-            {
-                bool result = (field[x, y] == 0 ? true : false);
-                return result;
+            Random random = new Random(); //instantiate a random
+            Console.CursorVisible = false;
+            bool Occupied(int x, int y) /*TODO: Implement collision detection */ {
+                return field[x, y] != 0 ? false : true;
             }
-            void Controls()
-            {
-                while (true)
-                {
-                    if (Console.KeyAvailable)
-                    {
+            void Rotate(int direction) {
+                switch (direction) {
+                    case 0: {
+
+                            break;
+                        }
+                    case 1: {
+
+                            break;
+                        }
+                    default: { break; }
+                }
+            }
+            void Controls() {
+                while (true) {
+                    if (Console.KeyAvailable) {
                         ConsoleKeyInfo key = Console.ReadKey(true);
-                        switch (key.Key)
-                        {
+                        switch (key.Key) {
                             case ConsoleKey.UpArrow: { break; }
                             case ConsoleKey.DownArrow: { current.Ypos++; break; }
                             case ConsoleKey.LeftArrow: { current.Xpos--; break; }
                             case ConsoleKey.RightArrow: { current.Xpos++; break; }
-                            case ConsoleKey.Escape: { GlobalValues.paused = !GlobalValues.paused; break; }
+                            case ConsoleKey.Z: { /*Rotate(0)*/; break; }
+                            case ConsoleKey.X: { /*Rotate(1);*/ break; }
+                            case ConsoleKey.Escape: { State.paused = !State.paused; break; }
+                            default: { break; }
                         }
                     }
                 }
             }
-            void Cascade()
-            {
-                for (int y = 0; y < 16; y++)
-                {
-                    for (int x = 0; x < 10; x++) { 
-                                                }
+            void Cascade() {
+                int acc = 0;
+                int i = 0;
+                for (int y = 0; y < 16; y++) {
+                    for (int x = 0; x < 10; x++) {
+                        acc = field[x, y];
+                    }
+                    i++;
+                    acc = 0;
                 }
             }
-
+            
+            Thread drawThread = new Thread(() => Draw(field, current));
+            Thread controlThread = new Thread(() => Controls());
+            
             drawThread.Start();
             controlThread.Start();
+            while (!State.lost) { //TODO: create a new tetromino instead of mutating original, apply it to array in set statement, store X & Y somewhere efficiently
+                if (!State.paused) {
+                    Thread.Sleep(1000 / difficulty); //speed up later to up difficulty
+                    current.genShape(random.Next(6));
+                    //if (!active) {
+                        
+                    //}
+                    
+                    //if (current.Ypos <= 15) { current.Ypos++; }
+                    //else {
+                    //    active = false;
+                    //    for (int y = 0; y < 4; y++) { for (int x = 0; x < 4; x++) {
+                    //            if (current.setShape[x, y] == 0) {
+                    //                field[current.Xpos, current.Ypos] = current.setShape[x, y];
+                    //            }
+                    //        } //push the current tetromino piece into field & only modify the field if there is anything there
+                    //    }
+                    //}
+                    //Cascade();
+                }
+                //if (!active) { //check if a tetromino is active
+                //    active = true;
+                //    current.Xpos = 0;
+                //    current.Ypos = 0;
+                //    current.setShape = current.getShape(random.Next(6)); //if not, set a new shape for the tetromino
+                //}
 
-            while (!GlobalValues.lost) //main loop 
-            {
-                if (!GlobalValues.paused)
-                { //&& !Occupied(current.Xpos + 1, current.Ypos + 1)
-                    if (current.Ypos < 16) { current.Ypos++; } //debug why this is isn't workingughggughuhggguh
-                    else
-                    {
-                        active = false;
-                        for (int y = 0; y < 2; y++)
-                        {
-                            for (int x = 0; x < 4; x++)
-                            {
-                                field[x + current.Xpos, y + current.Ypos] = (
-                                    current.setShape[x, y] == 0 ? field[x + current.Xpos, y + current.Ypos] : current.setShape[x, y]);
-                            } //push the current tetromino piece into field & only modify the field if there is anything there
-                        }
-                        current.Xpos = 0;
-                        current.Ypos = 0;
-                    }
-                }
-                if (!active)
-                { //check if a tetromino is active
-                    active = true;
-                    current.setShape = current.getShape(random.Next(6)); //if not, set a new shape for the tetromino
-                }
-                Thread.Sleep(500); //speed up later to up difficulty
+                
             }
             drawThread.Join();
-
+            controlThread.Join();
         }
-        public static void Draw(int[,] field, Tetromino current)
-        {
-            while (true)
-            {
+        public static void Draw(int[,] field, Tetromino current) { //TODO: pass the current tetromino into this thread somehow
+            while (true) {
+                Thread.Sleep(10); //since drawing to console takes roughly 0.25s, delay the thread to reduce flickering
                 Console.SetCursorPosition(0, 0); //return cursor to top left
                 string toWrite = "";
-                for (int y = 0; y < 16; y++)
-                {
-                    for (int x = 0; x < 10; x++) { toWrite = (field[x, y] == 0 ? ".." : "[]"); Console.Write(toWrite); }
+                for (int y = 0; y < 16; y++) { 
+                    for (int x = 0; x < 10; x++) { 
+                        toWrite = (field[x, y] == 0 ? ".." : "[]"); 
+                        Console.Write(toWrite); 
+                    }
                     Console.WriteLine(toWrite);
                 }
-
                 Console.SetCursorPosition(current.Xpos * 2, current.Ypos); //move cursor to current tetromino position
-                for (int y = 0; y < 2; y++)
-                {
-                    for (int x = 0; x < 4; x++)
-                    {
-                        if (current.setShape[x, y] == 0) { Console.SetCursorPosition(Console.CursorLeft + 2, Console.CursorTop); }
-                        else { Console.Write("[]"); }
+                if (!State.paused) {
+                    for (int y = 0; y < 4; y++) { for (int x = 0; x < 4; x++) {
+                            if (current.Shape[x, y] == 0) { 
+                                Console.SetCursorPosition(Console.CursorLeft + 2, Console.CursorTop); 
+                            }
+                            else { Console.Write("[]"); }
+                        }
+                        Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
                     }
-                    Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
                 }
-
-                if (GlobalValues.paused) { Console.SetCursorPosition(7, 8); Console.Write("{PAUSED}"); } //draw the pause screen dialog TODO: fix since it broke somehow
-                Thread.Sleep(50); //since drawing to console takes roughly 0.25s, delay the thread to reduce flickering
+                if (State.paused) { Console.SetCursorPosition(7, 8); Console.Write("{PAUSED}"); } //draw the pause screen dialog TODO: fix since it broke somehow
             }
         }
     }

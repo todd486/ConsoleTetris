@@ -93,24 +93,18 @@ namespace ConsoleTetris {
             controlThread.Start();
 
             while (!State.lost) {
-                if (!State.paused) {
-                    if (!active) {
-                        active = true;
-                        current.genShape(random.Next(6));
-                    } else {
-                        if (current.Ypos + 1 != 15) {
-                            current.Ypos++;
-                        } else {
-                            active = false;
-                            for (int y = 0; y < 4; y++) { for (int x = 0; x < 4; x++) { 
-                                    if (current.Shape[x, y] != 0) {
-                                        field[(current.Xpos + x >= 0 && current.Xpos + x <= 9 ? current.Xpos + x : 0), 
-                                            (current.Ypos + y >= 0 && current.Ypos + y <= 15 ? current.Ypos + y : 0)] = current.Shape[x, y];
-                                    }
-                                } 
-                            }
-                            current.Xpos = 0; current.Ypos = 0;
+                if (!State.paused) { 
+                    if (current.Ypos + 1 < 15) { current.Ypos++; } 
+                    else {
+                        for (int y = 0; y < 4; y++) { for (int x = 0; x < 4; x++) { 
+                            if (current.Shape[x, y] != 0) {
+                                field[(current.Xpos + x >= 0 && current.Xpos + x <= 9 ? current.Xpos + x : 0), 
+                                    (current.Ypos + y >= 0 && current.Ypos + y <= 15 ? current.Ypos + y : 0)] = current.Shape[x, y];
+                                }
+                            } 
                         }
+                        current.genShape(random.Next(6));
+                        current.Xpos = 0; current.Ypos = 0;
                     }
                     Thread.Sleep(1000 / difficulty); //speed up later to up difficulty
                 }
@@ -120,7 +114,7 @@ namespace ConsoleTetris {
         }
         public static void Draw(int[,] field, Tetromino current) { //TODO: pass the current tetromino into this thread somehow
             while (true) {
-                Thread.Sleep(10); //since drawing to console takes roughly 0.25s, delay the thread to reduce flickering
+                Thread.Sleep(20); //since drawing to console takes roughly 0.25s, delay the thread to reduce flickering
                 Console.SetCursorPosition(0, 0); //return cursor to top left
                 string toWrite = "";
                 for (int y = 0; y < 16; y++) { 
@@ -135,8 +129,7 @@ namespace ConsoleTetris {
                     for (int y = 0; y < 4; y++) { for (int x = 0; x < 4; x++) {
                             if (current.Shape[x, y] == 0) { 
                                 Console.SetCursorPosition(Console.CursorLeft + 2, Console.CursorTop); 
-                            }
-                            else { Console.Write("[]"); }
+                            } else { Console.Write("[]"); }
                         }
                         Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
                     }

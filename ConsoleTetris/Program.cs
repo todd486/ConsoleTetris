@@ -14,7 +14,7 @@ namespace ConsoleTetris {
                 new byte[,] { { 0x6 }, { 0xC } }, //S
                 new byte[,] { { 0x4 }, { 0xE } }, //T
                 new byte[,] { { 0xC }, { 0x6 } }  //Z
-            };
+            }; //TODO: store each rotation iteration rather than wasting cpu cycles calculating each rotation
             private int[] Coords = { 0, 0 };
             public bool Active { get; set; }
             public int Xpos { get => Coords[0]; set { Coords[0] = value >= 0 && value < 9 ? value : Coords[0]; } }
@@ -26,20 +26,13 @@ namespace ConsoleTetris {
                 foreach (byte shape in data[dataIndex]) {
                     string binaryString = "";
                     binaryString += Convert.ToString(shape, 2).PadLeft(4, '0');
-                    foreach (var bin in binaryString.Select((value, i) => new { i, value })) { var value = bin.value; var index = bin.i;
+                    foreach (var bin in binaryString.Select((value, i) => new { i, value })) {
+                        var value = bin.value; var index = bin.i;
                         temp[index, acc] = (int)Char.GetNumericValue(value); //cast char to int
                     } //credit where credit is due: https://stackoverflow.com/a/11437562
                     acc++;
                 }
                 Shape = temp;
-            }
-            public void Rotate(bool clockwise) { //doesn't really work but ok
-                int[,] _Shape = Shape;
-                for (int y = 3; y >= 0; y--) {
-                    for (int x = 0; x < 4; x++) { //https://stackoverflow.com/a/42535 https://stackoverflow.com/a/646478
-                        _Shape[x, y] = Shape[y, x];
-                    }
-                } Shape = _Shape;
             }
         }
         public class PlayField {
@@ -48,8 +41,14 @@ namespace ConsoleTetris {
             public static readonly int sizeY = 16;
             public int[,] State { get; private set; } = new int[sizeX, sizeY];
             public void MutateState(int x, int y, int _value) => State[x >= 0 && x < sizeX ? x : 0, y >= 0 && y < sizeY ? y : 0] = _value;
-            public bool Occupied(int x, int y) => State[x >= 0 && x < sizeX ? x : 0, y >= 0 && y < sizeY ? y : 0] != 0 ? true : false;
-            public void Cascade() {
+            public bool Occupied(int x, int y) {
+                bool result = true;
+                if (x >= 0 && x < sizeX && y >= 0 && y < sizeY) {
+                    if (State[x, y] == 0) { result = false; }
+                }
+                return result;
+            }
+            public int Cascade() {
                 int i = 0;
                 int acc = 0;
                 List<int> rowsToCascade = new List<int>();
@@ -57,7 +56,7 @@ namespace ConsoleTetris {
                     for (int x = 0; x < 10; x++) {
                         i++;
                         acc += State[x, y];
-                        if (i == 10) { 
+                        if (i == 10) {
                             if (acc == 10) {
                                 rowsToCascade.Add(i);
                             }
@@ -66,6 +65,7 @@ namespace ConsoleTetris {
                         }
                     }
                 }
+                return 0;
             }
         }
         public static class State {
@@ -84,48 +84,57 @@ namespace ConsoleTetris {
                         ConsoleKeyInfo key = Console.ReadKey(true);
                         switch (key.Key) {
                             case ConsoleKey.UpArrow: { break; } //calculate lowest possible movement
-                            case ConsoleKey.DownArrow: { Movement(0); break; }
-                            case ConsoleKey.LeftArrow: { Movement(1); break; }
-                            case ConsoleKey.RightArrow: { Movement(2); break; }
-                            case ConsoleKey.Z: { current.Rotate(false); break; }
-                            case ConsoleKey.X: { current.Rotate(true); break; }
+                            case ConsoleKey.DownArrow: { Collision(0); break; }
+                            case ConsoleKey.LeftArrow: { Collision(1); break; }
+                            case ConsoleKey.RightArrow: { Collision(2); break; }
+                            case ConsoleKey.Z: { break; }
+                            case ConsoleKey.X: { break; }
                             case ConsoleKey.Escape: { State.Paused = !State.Paused; break; }
                             default: { break; }
                         }
                     }
                 }
             }
-            bool Collision() {
-                bool success = true;
-                return success;
-            }
-            bool Movement(int direction) {
-                if (current.Active) {
+            bool Collision(int direction) {
+                List<bool> result = new List<bool>();
+                for (int y = 0; y < 4; y++) {
+                    for (int x = 0; x < 4; x++) {
+                        if (current.Shape[x, y] != 0) {
+                            switch (direction) {
+                                case 0: { result.Add(field.Occupied(current.Xpos + x, current.Ypos + y + 1)); break; } //down
+                                case 1: { result.Add(field.Occupied(current.Xpos + x - 1, current.Ypos + y)); break; } //left
+                                case 2: { result.Add(field.Occupied(current.Xpos + x + 1, current.Ypos + y)); break; } //right
+                                case 3: {
+
+                                        break;
+                                    } //drop
+                                default: { break; }
+                            }
+                        }
+                    }
+                }
+                if (!result.Contains(true)) {
                     switch (direction) {
                         case 0: { current.Ypos++; break; }
                         case 1: { current.Xpos--; break; }
                         case 2: { current.Xpos++; break; }
-                        case 3: { 
-
-                                break; 
-                            }
-                        default: { break; }
                     }
                 }
-                return true;
+                return !result.Contains(true);
             }
 
             Thread drawThread = new Thread(() => Draw(field, current)); drawThread.Start(); //create and start threads
             Thread controlThread = new Thread(() => Controls()); controlThread.Start();
 
+            int[] scoreMap = { 0, 40, 100, 300, 1200 };
             while (!State.Lost) {
-                Thread.Sleep(1000 / State.Level);
+                Thread.Sleep(1000 / State.Level); //TODO: use deltaTime
                 if (!State.Paused) {
                     if (!current.Active) {
                         current.GenerateShape(random.Next(6));
                         current.Xpos = 0; current.Ypos = 0;
                     }
-                    if (Collision()) { Movement(0); current.Active = true; } //TODO: collision detection
+                    if (Collision(0)) { current.Active = true; }
                     else {
                         current.Active = false;
                         for (int y = 0; y < 4; y++) {
@@ -135,17 +144,7 @@ namespace ConsoleTetris {
                                 }
                             }
                         }
-                        field.Cascade();
-                        int i = 0;
-                        //switch (field.Cascade()) { //point calc: n	40 * (n + 1)	100 * (n + 1)	300 * (n + 1)	1200 * (n + 1)
-                        //    case 0: { i = 0; break; }
-                        //    case 1: { i = 40; break; }
-                        //    case 2: { i = 100; break; }
-                        //    case 3: { i = 300; break; }
-                        //    case 4: { i = 1200; break; }
-                        //    default: { break; }
-                        //}
-                        State.Score += i * State.Level + 100;
+                        State.Score += scoreMap[field.Cascade()] * State.Level + 100;
                     }
                 }
             }
@@ -159,7 +158,8 @@ namespace ConsoleTetris {
                     for (int x = 0; x < 10; x++) {
                         string toWrite = field.State[x, y] == 0 ? ".." : "[]";
                         Console.Write(toWrite);
-                    }   Console.SetCursorPosition(0, Console.CursorTop + 1);
+                    }
+                    Console.SetCursorPosition(0, Console.CursorTop + 1);
                 }
                 Console.SetCursorPosition(current.Xpos * 2, current.Ypos); //move cursor to current tetromino position
                 if (!State.Paused) {
@@ -168,11 +168,14 @@ namespace ConsoleTetris {
                             if (current.Shape[x, y] == 0) {
                                 Console.SetCursorPosition(Console.CursorLeft + 2, Console.CursorTop);
                             } else { Console.Write("[]"); }
-                        }   Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
+                        }
+                        Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
                     }
                 }
-                if (State.Paused) { Console.SetCursorPosition(7, 8); Console.Write("{PAUSED}"); } //draw the pause screen dialog TODO: fix since it broke somehow
+                if (State.Paused) { Console.SetCursorPosition(6, 8); Console.Write("{PAUSED}"); } //draw the pause screen dialog
                 Console.SetCursorPosition(24, 0); Console.Write("[SCORE: {0}]", State.Score); //draw score
+                Console.SetCursorPosition(24, 1); Console.Write("[X: {0}, Y: {1}]", current.Xpos, current.Ypos); //draw debug info
+                Console.SetCursorPosition(24, 2); Console.Write("[ACTIVE: {0}]", current.Active);
             }
         }
     }

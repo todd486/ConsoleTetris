@@ -33,11 +33,11 @@ namespace ConsoleTetris {
                 }
                 Shape = temp;
             }
-            public void Rotate(int direction) { //doesn't really work but ok
+            public void Rotate(bool clockwise) { //doesn't really work but ok
                 int[,] _Shape = Shape;
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 4; j++) { //https://stackoverflow.com/a/42535
-                        _Shape[i, j] = Shape[j, i];
+                for (int y = 3; y >= 0; y--) {
+                    for (int x = 0; x < 4; x++) { //https://stackoverflow.com/a/42535 https://stackoverflow.com/a/646478
+                        _Shape[x, y] = Shape[y, x];
                     }
                 } Shape = _Shape;
             }
@@ -84,31 +84,37 @@ namespace ConsoleTetris {
                         ConsoleKeyInfo key = Console.ReadKey(true);
                         switch (key.Key) {
                             case ConsoleKey.UpArrow: { break; } //calculate lowest possible movement
-                            case ConsoleKey.DownArrow: { if (current.Active) { current.Ypos++; } break; }
-                            case ConsoleKey.LeftArrow: { if (current.Active) { current.Xpos--; } break; }
-                            case ConsoleKey.RightArrow: { if (current.Active) { current.Xpos++; } break; }
-                            case ConsoleKey.Z: { current.Rotate(0); break; }
-                            case ConsoleKey.X: { current.Rotate(1); break; }
+                            case ConsoleKey.DownArrow: { Movement(0); break; }
+                            case ConsoleKey.LeftArrow: { Movement(1); break; }
+                            case ConsoleKey.RightArrow: { Movement(2); break; }
+                            case ConsoleKey.Z: { current.Rotate(false); break; }
+                            case ConsoleKey.X: { current.Rotate(true); break; }
                             case ConsoleKey.Escape: { State.Paused = !State.Paused; break; }
                             default: { break; }
                         }
                     }
                 }
             }
-
             bool Collision() {
-                bool success = false;
-                int[,] filter = new int[3, 3];
-
-                for (int y = 0; y < 4; y++) {
-                    for (int x = 0; x < 4; x++) {
-                        
-                    }
-                }
-
+                bool success = true;
                 return success;
             }
-            
+            bool Movement(int direction) {
+                if (current.Active) {
+                    switch (direction) {
+                        case 0: { current.Ypos++; break; }
+                        case 1: { current.Xpos--; break; }
+                        case 2: { current.Xpos++; break; }
+                        case 3: { 
+
+                                break; 
+                            }
+                        default: { break; }
+                    }
+                }
+                return true;
+            }
+
             Thread drawThread = new Thread(() => Draw(field, current)); drawThread.Start(); //create and start threads
             Thread controlThread = new Thread(() => Controls()); controlThread.Start();
 
@@ -119,11 +125,7 @@ namespace ConsoleTetris {
                         current.GenerateShape(random.Next(6));
                         current.Xpos = 0; current.Ypos = 0;
                     }
-                    //TODO: collision detection
-                    if (current.Ypos + 1 < 15) { current.Ypos++; current.Active = true; } 
-                    if (Collision()) { 
-                        
-                    }
+                    if (Collision()) { Movement(0); current.Active = true; } //TODO: collision detection
                     else {
                         current.Active = false;
                         for (int y = 0; y < 4; y++) {
@@ -153,13 +155,11 @@ namespace ConsoleTetris {
             while (true) {
                 Thread.Sleep(30); //since drawing to console takes roughly 0.25s, sleep the thread to reduce flickering
                 Console.SetCursorPosition(0, 0); //return cursor to top left
-                string toWrite = "";
                 for (int y = 0; y < 16; y++) {
                     for (int x = 0; x < 10; x++) {
-                        toWrite = field.State[x, y] == 0 ? ".." : "[]";
+                        string toWrite = field.State[x, y] == 0 ? ".." : "[]";
                         Console.Write(toWrite);
-                    }
-                    Console.SetCursorPosition(0, Console.CursorTop + 1);
+                    }   Console.SetCursorPosition(0, Console.CursorTop + 1);
                 }
                 Console.SetCursorPosition(current.Xpos * 2, current.Ypos); //move cursor to current tetromino position
                 if (!State.Paused) {
@@ -168,8 +168,7 @@ namespace ConsoleTetris {
                             if (current.Shape[x, y] == 0) {
                                 Console.SetCursorPosition(Console.CursorLeft + 2, Console.CursorTop);
                             } else { Console.Write("[]"); }
-                        }
-                        Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
+                        }   Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
                     }
                 }
                 if (State.Paused) { Console.SetCursorPosition(7, 8); Console.Write("{PAUSED}"); } //draw the pause screen dialog TODO: fix since it broke somehow

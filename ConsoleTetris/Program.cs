@@ -23,9 +23,9 @@ namespace ConsoleTetris {
             public void GenerateShape(int shapeIndex) {
                 int[,] _Shape = new int[4, 4]; 
                 int acc = 0;
-                foreach (byte shape in data[shapeIndex]) {
+                foreach (byte x in data[shapeIndex]) {
                     string binaryString = "";
-                    binaryString += Convert.ToString(shape, 2).PadLeft(4, '0');
+                    binaryString += Convert.ToString(x, 2).PadLeft(4, '0');
                     foreach (var bin in binaryString.Select((value, i) => new { i, value })) {
                         var value = bin.value; var index = bin.i;
                         _Shape[index, acc] = (int)Char.GetNumericValue(value); //cast char to int
@@ -38,7 +38,11 @@ namespace ConsoleTetris {
 
             }
         }
-        public class PlayField {
+        public struct F {
+            public int x;
+            public int y;
+        }
+        public class PlayField { //rework into struct? https://www.youtube.com/watch?v=4FyeBUPrwKY
             public PlayField() { }
             private static readonly int sizeX = 10;
             private static readonly int sizeY = 16;
@@ -46,19 +50,19 @@ namespace ConsoleTetris {
             public void MutateState(int x, int y, int _value) => State[x >= 0 && x < sizeX ? x : 0, y >= 0 && y < sizeY ? y : 0] = _value;
             public bool Occupied(int x, int y) {
                 bool result = true;
-                if (x >= 0 && x < sizeX && y >= 0 && y < sizeY) {
-                    if (State[x, y] == 0) { result = false; }
-                }
+                if (x >= 0 && x < sizeX && y >= 0 && y < sizeY) { if (State[x, y] == 0) { result = false; } }
                 return result;
             }
             public int Cascade() {
-                List<int> lines = new List<int>();
+                int[] GetRow(int[,] matrix, int row) => Enumerable.Range(0, matrix.GetLength(0)).Select(a => matrix[a, row]).ToArray();
+                int acc = 0;
                 for (int y = 0; y < sizeY; y++) {
-                    int acc = 0;
-                    for (int x = 0; x < sizeX; x++) { State[x, y] += acc; }
-                    if (acc == sizeX - 1) { lines.Add(y); }
+                    int[] _ = GetRow(State, y);
+                    if (_.All(i => i == 1)) { acc++;
+                        for (int x = 0; x < sizeX; x++) { State[x, y] = 0; }
+                    }
                 }
-                return lines.Count();
+                return acc;
             }
         }
         public static class G {
@@ -127,7 +131,7 @@ namespace ConsoleTetris {
                     if (!current.Active) { 
                         current.GenerateShape(G.ShapeBuffer[0]);
                         G.ShapeBuffer[0] = G.ShapeBuffer[1]; G.ShapeBuffer[1] = random.Next(6); //shift first element out of array, then replace it.
-                        current.Xpos = 0; current.Ypos = 0; 
+                        current.Xpos = 0; current.Ypos = 0;
                     }
                     if (Movement(0)) { current.Active = true; } 
                     else { current.Active = false;
@@ -151,8 +155,7 @@ namespace ConsoleTetris {
                 Console.SetCursorPosition(0, 0); //return cursor to top left
                 for (int y = 0; y < 16; y++) {
                     for (int x = 0; x < 10; x++) {
-                        string toWrite = field.State[x, y] == 0 ? ".." : "[]";
-                        Console.Write(toWrite);
+                        Console.Write(field.State[x, y] == 0 ? ".." : "[]");
                     }
                     Console.SetCursorPosition(0, Console.CursorTop + 1);
                 }
@@ -166,8 +169,7 @@ namespace ConsoleTetris {
                     }
                 }
                 if (G.Paused) { Console.SetCursorPosition(6, 8); Console.Write("{PAUSED}"); } //draw the pause screen dialog
-                Console.SetCursorPosition(24, 0); Console.Write("[ SCORE: {0} ][ LEVEL: {1} ][ LINES: {2} ]", G.Score, G.Level, G.Lines); //draw score
-                //Console.SetCursorPosition(24, 15); Console.Write("[X: {0}, Y: {1}][ACTIVE: {2}]", current.Xpos, current.Ypos, current.Active); //draw debug info
+                Console.SetCursorPosition(24, 0); Console.Write($"[ SCORE: {G.Score} ][ LEVEL: {G.Level} ][ LINES: {G.Lines} ]"); //draw score
             }
         }
     }

@@ -19,30 +19,27 @@ namespace ConsoleTetris {
             public bool Active { get; set; }
             public int Xpos { get => Coords[0]; set { Coords[0] = value >= 0 && value < 9 ? value : Coords[0]; } }
             public int Ypos { get => Coords[1]; set { Coords[1] = value >= 0 && value < 15 ? value : Coords[1]; } }
+            public int Rotation { get; set; }
             public int[,] Shape = new int[4, 4];
             public void GenerateShape(int shapeIndex) {
-                int[,] _Shape = new int[4, 4]; 
-                int acc = 0;
-                foreach (byte x in data[shapeIndex]) {
-                    string binaryString = "";
-                    binaryString += Convert.ToString(x, 2).PadLeft(4, '0');
-                    foreach (var bin in binaryString.Select((value, i) => new { i, value })) {
-                        var value = bin.value; var index = bin.i;
-                        _Shape[index, acc] = (int)Char.GetNumericValue(value); //cast char to int
-                    } //credit where credit is due: https://stackoverflow.com/a/11437562
-                    acc++;
+                int[,] _Shape = new int[4, 4];
+                string bin = "";
+                foreach (byte a in data[shapeIndex]) { bin += Convert.ToString(a, 2).PadLeft(4, '0'); }
+                //for (int y = 0; y < 4; y++) {
+                //    for (int x = 0; x < 4; x++) {
+                //        _Shape[y, x] = (int)Char.GetNumericValue(x + y < bin.Length ? bin[x + y] : '0');
+                //    }
+                //}
+                for (int y = 0; y < 4; y++) {
+                    for (int x = 0; x < 4; x++) {
+                        _Shape[x, y] = 1;
+                    }
                 }
                 Shape = _Shape;
             }
-            public void RotateShape(bool clockwise) { //TODO
-
-            }
+            public void Reset() { Xpos = 0; Ypos = 0; Rotation = 0; }
         }
-        public struct F {
-            public int x;
-            public int y;
-        }
-        public class PlayField { //rework into struct? https://www.youtube.com/watch?v=4FyeBUPrwKY
+        public class PlayField {
             public PlayField() { }
             private static readonly int sizeX = 10;
             private static readonly int sizeY = 16;
@@ -50,7 +47,7 @@ namespace ConsoleTetris {
             public void MutateState(int x, int y, int _value) => State[x >= 0 && x < sizeX ? x : 0, y >= 0 && y < sizeY ? y : 0] = _value;
             public bool Occupied(int x, int y) {
                 bool result = true;
-                if (x >= 0 && x < sizeX && y >= 0 && y < sizeY) { if (State[x, y] == 0) { result = false; } }
+                if (x >= 0 && x < sizeX && y >= 0 && y < sizeY) { result = State[x, y] != 0 ? true : false; }
                 return result;
             }
             public int Cascade() {
@@ -94,7 +91,7 @@ namespace ConsoleTetris {
                         }
                     }
                 }
-            }
+            } //using local functions since i need to have constant access to the objects i created
             bool Movement(int direction) {
                 List<bool> result = new List<bool>();
                 for (int y = 0; y < 4; y++) {
@@ -131,7 +128,7 @@ namespace ConsoleTetris {
                     if (!current.Active) { 
                         current.GenerateShape(G.ShapeBuffer[0]);
                         G.ShapeBuffer[0] = G.ShapeBuffer[1]; G.ShapeBuffer[1] = random.Next(6); //shift first element out of array, then replace it.
-                        current.Xpos = 0; current.Ypos = 0;
+                        current.Reset(); //reset values
                     }
                     if (Movement(0)) { current.Active = true; } 
                     else { current.Active = false;
@@ -163,9 +160,10 @@ namespace ConsoleTetris {
                 if (!G.Paused) {
                     for (int y = 0; y < 4; y++) {
                         for (int x = 0; x < 4; x++) {
-                            if (current.Shape[x, y] == 0) { Console.SetCursorPosition(Console.CursorLeft + 2, Console.CursorTop); } else { Console.Write("[]"); }
+                            if (current.Shape[x, y] == 1) { Console.Write("[]"); } 
+                            else { Console.SetCursorPosition(Console.CursorLeft + 2, Console.CursorTop); }
                         }
-                        Console.SetCursorPosition(current.Xpos * 2, current.Ypos + 1);
+                        Console.SetCursorPosition(current.Xpos * 2, Console.CursorTop + 1);
                     }
                 }
                 if (G.Paused) { Console.SetCursorPosition(6, 8); Console.Write("{PAUSED}"); } //draw the pause screen dialog
